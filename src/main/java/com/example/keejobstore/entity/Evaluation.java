@@ -24,7 +24,6 @@ public class Evaluation {
 
     private String name;
     private String logo;
-    private String test;
 
     @Column(columnDefinition = "TEXT")
     private String description;
