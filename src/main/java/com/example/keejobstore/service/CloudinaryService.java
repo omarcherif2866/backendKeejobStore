@@ -8,7 +8,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -48,4 +50,38 @@ public class CloudinaryService {
         String fileName = fileNameWithExtension.substring(0, fileNameWithExtension.lastIndexOf('.'));
         return "formateurs/" + fileName;
     }
+
+
+    public List<String> listIconsFromFolder(String folderName) {
+        List<String> iconUrls = new ArrayList<>();
+
+        try {
+            // Récupérer toutes les ressources du dossier "icon"
+            Map result = cloudinary.api().resources(
+                    ObjectUtils.asMap(
+                            "type", "upload",
+                            "prefix", folderName + "/",  // "icon/"
+                            "max_results", 500  // Limite à 500 icônes
+                    )
+            );
+
+            // Extraire les URLs
+            List<Map> resources = (List<Map>) result.get("resources");
+            for (Map resource : resources) {
+                String url = (String) resource.get("secure_url");
+                if (url != null && !url.isEmpty()) {
+                    iconUrls.add(url);
+                }
+            }
+
+            System.out.println("✅ Found " + iconUrls.size() + " icons in folder: " + folderName);
+
+        } catch (Exception e) {
+            System.err.println("❌ Error listing icons from Cloudinary: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return iconUrls;
+    }
+
 }

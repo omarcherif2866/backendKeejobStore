@@ -45,7 +45,7 @@ public class WebSecurityConfig  {
             "/logiciel/**",
             "/cv/**",
             "/coaching/**",
-
+            "/images/**",
     };
 
 

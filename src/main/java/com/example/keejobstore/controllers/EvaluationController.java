@@ -338,5 +338,17 @@ public class EvaluationController {
         return evaluationService.getDetailsByCategory();
     }
 
+    @GetMapping("/by-category/{category}")
+    public ResponseEntity<?> getEvaluationByCategory(@PathVariable String category) {
+        try {
+            CategoryEvaluation enumValue = CategoryEvaluation.valueOf(category);
+            List<Evaluation> evaluations = evaluationService.getEvaluationsByCategory(enumValue);
+            return ResponseEntity.ok(evaluations);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Catégorie invalide !");
+        }
+    }
+
+
 }
     

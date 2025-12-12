@@ -1,9 +1,7 @@
 package com.example.keejobstore.service;
 
-import com.example.keejobstore.entity.DetailObject;
+import com.example.keejobstore.entity.*;
 import com.example.keejobstore.entity.Evaluation;
-import com.example.keejobstore.entity.Evaluation;
-import com.example.keejobstore.entity.EvaluationCatalogue;
 import com.example.keejobstore.repository.EvaluationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -141,5 +139,10 @@ public class EvaluationServiceImp implements EvaluationService{
                         Collectors.toList()
                 ));
     }
+
+    public List<Evaluation> getEvaluationsByCategory(CategoryEvaluation category) {
+        return evaluationRepository.findByEvaluationCategory(category);
+    }
+
 
 }
