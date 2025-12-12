@@ -3,6 +3,7 @@ package com.example.keejobstore.service;
 import com.example.keejobstore.entity.DetailObject;
 import com.example.keejobstore.entity.Evaluation;
 import com.example.keejobstore.entity.Evaluation;
+import com.example.keejobstore.entity.EvaluationCatalogue;
 import com.example.keejobstore.repository.EvaluationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -56,32 +57,58 @@ public class EvaluationServiceImp implements EvaluationService{
     public Evaluation updateEvaluation(Long id, Evaluation newData) {
 
         Evaluation existingEvaluation = evaluationRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Evaluation not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Evaluation not found with id: " + id));
 
-        // 🔹 name
+        // 🔹 Mise à jour des champs de base
         if (newData.getName() != null) {
             existingEvaluation.setName(newData.getName());
         }
 
-        // 🔹 description
         if (newData.getDescription() != null) {
             existingEvaluation.setDescription(newData.getDescription());
         }
 
-        // 🔹 image
         if (newData.getImage() != null) {
             existingEvaluation.setImage(newData.getImage());
         }
+
         if (newData.getLogo() != null) {
             existingEvaluation.setLogo(newData.getLogo());
         }
 
+        // 🔹 Mise à jour de la catégorie d'évaluation
+        if (newData.getEvaluationCategory() != null) {
+            existingEvaluation.setEvaluationCategory(newData.getEvaluationCategory());
+        }
 
-        // 🔹 MISE À JOUR DES SECTIONS
+        // 🔹 Mise à jour des sections (avec les icônes)
         if (newData.getSections() != null && !newData.getSections().isEmpty()) {
             existingEvaluation.setSections(newData.getSections());
         }
 
+        // 🔹 Mise à jour des partenaires
+        if (newData.getEvaluationPartenaires() != null) {
+            // Supprimer les anciennes relations
+            existingEvaluation.getEvaluationPartenaires().clear();
+            // Ajouter les nouvelles
+            existingEvaluation.setEvaluationPartenaires(newData.getEvaluationPartenaires());
+        }
+
+        // 🔹 Mise à jour des catalogues
+        if (newData.getEvaluationCatalogues() != null) {
+            // Supprimer les anciens catalogues (orphanRemoval devrait gérer ça)
+            if (existingEvaluation.getEvaluationCatalogues() != null) {
+                existingEvaluation.getEvaluationCatalogues().clear();
+            }
+
+            // Ajouter les nouveaux catalogues
+            for (EvaluationCatalogue catalogue : newData.getEvaluationCatalogues()) {
+                catalogue.setEvaluation(existingEvaluation); // Associer au parent
+            }
+            existingEvaluation.setEvaluationCatalogues(newData.getEvaluationCatalogues());
+        }
+
+        // 🔹 Sauvegarder et retourner
         return evaluationRepository.save(existingEvaluation);
     }
 

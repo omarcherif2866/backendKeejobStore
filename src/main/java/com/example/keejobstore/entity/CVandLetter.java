@@ -31,6 +31,7 @@ public class CVandLetter {
     private List<CVandLetterSection> sections = new ArrayList<>();
 
     private String image;
+    private String logo;
 
     @ManyToMany
     @JoinTable(
@@ -44,5 +45,8 @@ public class CVandLetter {
     @Column(columnDefinition = "JSON")
     @Convert(converter = PriceConverter.class)
     private List<PriceSection> priceSections = new ArrayList<>();
+
+    @Enumerated(EnumType.STRING)
+    private CategoryCV categoryCV ;
 
 }

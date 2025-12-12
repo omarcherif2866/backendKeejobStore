@@ -32,6 +32,7 @@ public class CoachingEmploi {
     private List<CoachingSection> sections = new ArrayList<>();
 
     private String image;
+    private String logo;
 
     @ManyToMany
     @JoinTable(
@@ -45,6 +46,9 @@ public class CoachingEmploi {
     @Column(columnDefinition = "JSON")
     @Convert(converter = PriceConverter.class)
     private List<PriceSection> priceSections = new ArrayList<>();
+
+    @Enumerated(EnumType.STRING)
+    private CategoryCoaching categoryCoaching ;
 
 }
 

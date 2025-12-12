@@ -82,6 +82,10 @@ public class CoachingServiceImp implements CoachingService {
             existingCoachingEmploi.setImage(newData.getImage());
         }
 
+        if (newData.getLogo() != null) {
+            existingCoachingEmploi.setLogo(newData.getLogo());
+        }
+
         // 🔹 MISE À JOUR DES SECTIONS
         if (newData.getSections() != null && !newData.getSections().isEmpty()) {
             existingCoachingEmploi.setSections(newData.getSections());
@@ -89,6 +93,10 @@ public class CoachingServiceImp implements CoachingService {
 
         if (newData.getPriceSections() != null && !newData.getPriceSections().isEmpty()) {
             existingCoachingEmploi.setPriceSections(newData.getPriceSections());
+        }
+
+        if (newData.getCategoryCoaching() != null) {
+            existingCoachingEmploi.setCategoryCoaching(newData.getCategoryCoaching());
         }
 
         return coachingRepository.save(existingCoachingEmploi);

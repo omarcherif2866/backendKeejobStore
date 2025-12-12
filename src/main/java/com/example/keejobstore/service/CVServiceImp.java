@@ -1,12 +1,15 @@
 package com.example.keejobstore.service;
 
 import com.example.keejobstore.entity.CVandLetter;
+import com.example.keejobstore.entity.DetailObject;
+import com.example.keejobstore.entity.Evaluation;
 import com.example.keejobstore.repository.CVRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -69,6 +72,10 @@ public class CVServiceImp implements CVService {
             existingCVandLetter.setImage(newData.getImage());
         }
 
+        if (newData.getLogo() != null) {
+            existingCVandLetter.setLogo(newData.getLogo());
+        }
+
         // 🔹 MISE À JOUR DES SECTIONS
         if (newData.getSections() != null && !newData.getSections().isEmpty()) {
             existingCVandLetter.setSections(newData.getSections());
@@ -78,7 +85,13 @@ public class CVServiceImp implements CVService {
             existingCVandLetter.setPriceSections(newData.getPriceSections());
         }
 
+        if (newData.getCategoryCV() != null) {
+            existingCVandLetter.setCategoryCV(newData.getCategoryCV());
+        }
+
         return cvRepository.save(existingCVandLetter);
     }
+
+
 
 }

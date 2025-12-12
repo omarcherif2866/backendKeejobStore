@@ -1,5 +1,7 @@
 package com.example.keejobstore.service;
 
+import com.example.keejobstore.entity.DetailObject;
+import com.example.keejobstore.entity.Evaluation;
 import com.example.keejobstore.entity.FormationKeejob;
 import com.example.keejobstore.entity.FormationKeejob;
 import com.example.keejobstore.repository.ActualiteRepository;
@@ -8,10 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -66,7 +66,21 @@ public class FormationKeejobServiceImp implements FormationKeejobService {
                 existingFormationKeejob.setDescription(FormationKeejob.getDescription());
             }
 
+            if (FormationKeejob.getImage() != null) {
+                existingFormationKeejob.setImage(FormationKeejob.getImage());
+            }
 
+            if (FormationKeejob.getLogo() != null) {
+                existingFormationKeejob.setLogo(FormationKeejob.getLogo());
+            }
+
+
+            if (FormationKeejob.getPartenaires() != null) {
+                // Supprimer les anciennes relations
+                existingFormationKeejob.getPartenaires().clear();
+                // Ajouter les nouvelles
+                existingFormationKeejob.setPartenaires(FormationKeejob.getPartenaires());
+            }
 
             FormationKeejob updatedFormationKeejob = formationKeejobRepository.save(existingFormationKeejob);
 
@@ -75,4 +89,6 @@ public class FormationKeejobServiceImp implements FormationKeejobService {
             throw new IllegalArgumentException("FormationKeejob not found with ID: " + id);
         }
     }
+
+
 }

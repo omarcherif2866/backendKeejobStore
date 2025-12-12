@@ -1,7 +1,6 @@
 package com.example.keejobstore.controllers;
 
-import com.example.keejobstore.entity.FormationKeejob;
-import com.example.keejobstore.entity.Partenaire;
+import com.example.keejobstore.entity.*;
 import com.example.keejobstore.repository.PartenaireRepository;
 import com.example.keejobstore.service.CloudinaryService;
 import com.example.keejobstore.service.FormationKeejobService;
@@ -30,6 +29,8 @@ public class FormationKeejobController {
             @RequestParam("title") String title,
             @RequestParam("description") String description,
             @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "logo", required = false) MultipartFile logo,
+            @RequestParam("categoryFormationKeejob") String categoryFormationKeejobStr,
             @RequestParam(value = "partenairesIds", required = false) List<Long> partenairesIds) {
 
         try {
@@ -38,15 +39,29 @@ public class FormationKeejobController {
                 return ResponseEntity.badRequest().body("Paramètres d'entrée invalides.");
             }
 
+            CategoryFormationKeejob category;
+            try {
+                category = CategoryFormationKeejob.valueOf(categoryFormationKeejobStr);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body("Catégorie d'évaluation invalide !");
+            }
+
             // Création
             FormationKeejob formation = new FormationKeejob();
             formation.setTitle(title);
             formation.setDescription(description);
+            formation.setCategoryFormationKeejob(category);
 
             // Upload de l'image vers Cloudinary
             if (image != null && !image.isEmpty()) {
                 String imageUrl = cloudinaryService.uploadImage(image);
                 formation.setImage(imageUrl);
+            }
+
+            // Upload logo
+            if (logo != null && !logo.isEmpty()) {
+                String logoUrl = cloudinaryService.uploadImage(logo);
+                formation.setLogo(logoUrl);
             }
 
             // 🔥 Association des partenaires (ManyToMany)
@@ -95,6 +110,8 @@ public class FormationKeejobController {
             @RequestParam("title") String title,
             @RequestParam("description") String description,
             @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "logo", required = false) MultipartFile logo,
+            @RequestParam("categoryFormationKeejob") String categoryFormationKeejobStr,
             @RequestParam(value = "partenairesIds", required = false) List<Long> partenairesIds) {
 
         try {
@@ -102,7 +119,13 @@ public class FormationKeejobController {
             if (existing == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("FormationKeejob non trouvée");
             }
-
+            CategoryFormationKeejob category;
+            try {
+                category = CategoryFormationKeejob.valueOf(categoryFormationKeejobStr);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body("Catégorie d'évaluation invalide !");
+            }
+            existing.setCategoryFormationKeejob(category);
             // MAJ des champs principaux
             existing.setTitle(title);
             existing.setDescription(description);
@@ -111,6 +134,11 @@ public class FormationKeejobController {
             if (image != null && !image.isEmpty()) {
                 String imageUrl = cloudinaryService.uploadImage(image);
                 existing.setImage(imageUrl);
+            }
+
+            if (logo != null && !logo.isEmpty()) {
+                String logoUrl = cloudinaryService.uploadImage(logo);
+                existing.setLogo(logoUrl);
             }
 
             // 🔥 MAJ des partenaires

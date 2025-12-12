@@ -1,9 +1,6 @@
 package com.example.keejobstore.controllers;
 
-import com.example.keejobstore.entity.CoachingEmploi;
-import com.example.keejobstore.entity.CoachingSection;
-import com.example.keejobstore.entity.Partenaire;
-import com.example.keejobstore.entity.PriceSection;
+import com.example.keejobstore.entity.*;
 import com.example.keejobstore.repository.CoachingRepository;
 import com.example.keejobstore.repository.PartenaireRepository;
 import com.example.keejobstore.service.CloudinaryService;
@@ -40,9 +37,13 @@ public class CoachingController {
             @RequestParam("sousTitre") String sousTitre,
             @RequestParam("description") String description,
             @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "logo", required = false) MultipartFile logo,
+            @RequestParam("categoryCoaching") String categoryCoachingStr,
             @RequestParam("sections") String sectionsJson,
             @RequestParam("priceSections") String priceSectionsJson,  // ← Vérifiez le nom
-            @RequestParam(value = "partenairesIds", required = false) List<Long> partenairesIds
+            @RequestParam(value = "partenairesIds", required = false) List<Long> partenairesIds,
+            @RequestParam(value = "iconFiles", required = false) List<MultipartFile> iconFiles,
+            @RequestParam(value = "priceIconFiles", required = false) List<MultipartFile> priceIconFiles
     ) throws JsonProcessingException {
 
 
@@ -54,12 +55,115 @@ public class CoachingController {
                     sectionsJson,
                     new TypeReference<List<CoachingSection>>(){}
             );
+            CategoryCoaching category;
+            try {
+                category = CategoryCoaching.valueOf(categoryCoachingStr);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body("Catégorie d'évaluation invalide !");
+            }
+            if (iconFiles != null && !iconFiles.isEmpty()) {
+                int iconIndex = 0;
+
+                for (CoachingSection section : sections) {
+                    if (section.getDetails() != null && !section.getDetails().isEmpty()) {
+                        for (DetailObject detail : section.getDetails()) {
+                            if (iconIndex < iconFiles.size()) {
+                                MultipartFile iconFile = iconFiles.get(iconIndex);
+
+                                if (iconFile != null && !iconFile.isEmpty() && iconFile.getSize() > 0) {
+                                    try {
+                                        String iconUrl = cloudinaryService.uploadIcon(iconFile, "icon");
+                                        detail.setIcon(iconUrl);
+                                        System.out.println("✅ Icon uploaded for section detail '" + detail.getTitre() + "': " + iconUrl);
+                                    } catch (Exception e) {
+                                        System.err.println("❌ Error uploading icon: " + e.getMessage());
+                                        detail.setIcon(null);
+                                    }
+                                } else {
+                                    String existingIcon = detail.getIcon();
+                                    if (existingIcon == null || existingIcon.trim().isEmpty()) {
+                                        detail.setIcon(null);
+                                        System.out.println("ℹ️ No icon for section detail '" + detail.getTitre() + "'");
+                                    } else {
+                                        System.out.println("ℹ️ Keeping existing icon for section detail '" + detail.getTitre() + "'");
+                                    }
+                                }
+                                iconIndex++;
+                            } else {
+                                detail.setIcon(null);
+                                System.out.println("⚠️ No more iconFiles for section detail '" + detail.getTitre() + "'");
+                            }
+                        }
+                    }
+                }
+                System.out.println("📊 Total section iconFiles processed: " + iconIndex);
+            } else {
+                for (CoachingSection section : sections) {
+                    if (section.getDetails() != null) {
+                        for (DetailObject detail : section.getDetails()) {
+                            if (detail.getIcon() == null || detail.getIcon().trim().isEmpty()) {
+                                detail.setIcon(null);
+                            }
+                        }
+                    }
+                }
+            }
 
             // Parse priceSections (avec title)
             List<PriceSection> priceSections = mapper.readValue(
                     priceSectionsJson,
                     new TypeReference<List<PriceSection>>(){}
             );
+
+            if (priceIconFiles != null && !priceIconFiles.isEmpty()) {
+                int priceIconIndex = 0;
+
+                for (PriceSection priceSection : priceSections) {
+                    if (priceSection.getDetails() != null && !priceSection.getDetails().isEmpty()) {
+                        for (DetailObject detail : priceSection.getDetails()) {
+                            if (priceIconIndex < priceIconFiles.size()) {
+                                MultipartFile iconFile = priceIconFiles.get(priceIconIndex);
+
+                                if (iconFile != null && !iconFile.isEmpty() && iconFile.getSize() > 0) {
+                                    try {
+                                        String iconUrl = cloudinaryService.uploadIcon(iconFile, "price-icon");
+                                        detail.setIcon(iconUrl);
+                                        System.out.println("✅ Price icon uploaded for detail '" + detail.getTitre() + "': " + iconUrl);
+                                    } catch (Exception e) {
+                                        System.err.println("❌ Error uploading price icon: " + e.getMessage());
+                                        detail.setIcon(null);
+                                    }
+                                } else {
+                                    String existingIcon = detail.getIcon();
+                                    if (existingIcon == null || existingIcon.trim().isEmpty()) {
+                                        detail.setIcon(null);
+                                        System.out.println("ℹ️ No icon for price detail '" + detail.getTitre() + "'");
+                                    } else {
+                                        System.out.println("ℹ️ Keeping existing icon for price detail '" + detail.getTitre() + "'");
+                                    }
+                                }
+                                priceIconIndex++;
+                            } else {
+                                detail.setIcon(null);
+                                System.out.println("⚠️ No more priceIconFiles for detail '" + detail.getTitre() + "'");
+                            }
+                        }
+                    }
+                }
+                System.out.println("📊 Total price iconFiles processed: " + priceIconIndex);
+            } else {
+                for (PriceSection priceSection : priceSections) {
+                    if (priceSection.getDetails() != null) {
+                        for (DetailObject detail : priceSection.getDetails()) {
+                            if (detail.getIcon() == null || detail.getIcon().trim().isEmpty()) {
+                                detail.setIcon(null);
+                            }
+                        }
+                    }
+                }
+            }
+
+
 
             CoachingEmploi CoachingEmploi = new CoachingEmploi();
             CoachingEmploi.setName(name);
@@ -68,6 +172,7 @@ public class CoachingController {
             CoachingEmploi.setDescription(description);
             CoachingEmploi.setSections(sections);
             CoachingEmploi.setPriceSections(priceSections);  // ← Vérifiez que vous appelez bien setPriceSections
+            CoachingEmploi.setCategoryCoaching(category);
 
             // Upload image si présente
             if (image != null && !image.isEmpty()) {
@@ -79,6 +184,11 @@ public class CoachingController {
             if (partenairesIds != null && !partenairesIds.isEmpty()) {
                 List<Partenaire> partenaires = partenaireRepository.findAllById(partenairesIds);
                 CoachingEmploi.setCoachingPartenaires(partenaires);
+            }
+
+            if (logo != null && !logo.isEmpty()) {
+                String logoUrl = cloudinaryService.uploadImage(logo);
+                CoachingEmploi.setLogo(logoUrl);
             }
 
             CoachingEmploi saved = coachingRepository
@@ -117,12 +227,15 @@ public class CoachingController {
             @RequestParam(value = "name", required = false) String name,
             @RequestParam(value = "titre", required = false) String titre,
             @RequestParam(value = "sousTitre", required = false) String sousTitre,
-
             @RequestParam(value = "description", required = false) String description,
             @RequestParam(value = "sections", required = false) String sectionsJson,
             @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "logo", required = false) MultipartFile logo,
+            @RequestParam("categoryCoaching") String categoryCoachingStr,
             @RequestParam(value = "partenairesIds", required = false) List<Long> partenairesIds,
-            @RequestParam(value = "priceSections", required = false) String priceSectionsJson) {
+            @RequestParam(value = "priceSections", required = false) String priceSectionsJson,
+            @RequestParam(value = "iconFiles", required = false) List<MultipartFile> iconFiles,
+            @RequestParam(value = "priceIconFiles", required = false) List<MultipartFile> priceIconFiles) {
 
         try {
             CoachingEmploi existing = coachingService.getCoachingEmploiById(id);
@@ -136,18 +249,114 @@ public class CoachingController {
 
             if (description != null) existing.setDescription(description);
 
+            CategoryCoaching category;
+            try {
+                category = CategoryCoaching.valueOf(categoryCoachingStr);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body("Catégorie d'évaluation invalide !");
+            }
+            existing.setCategoryCoaching(category);
+            
             // Mise à jour des sections
-            if (sectionsJson != null && !sectionsJson.isEmpty()) {
-                ObjectMapper mapper = new ObjectMapper();
-                List<CoachingSection> sections =
-                        mapper.readValue(sectionsJson, new TypeReference<List<CoachingSection>>() {});
-                existing.setSections(sections);
+            ObjectMapper mapper = new ObjectMapper();
+            List<CoachingSection> sections =
+                    mapper.readValue(sectionsJson, new TypeReference<List<CoachingSection>>() {});
+
+            // Traitement des iconFiles pour sections
+            if (iconFiles != null && !iconFiles.isEmpty()) {
+                int iconIndex = 0;
+
+                for (CoachingSection section : sections) {
+                    if (section.getDetails() != null && !section.getDetails().isEmpty()) {
+                        for (DetailObject detail : section.getDetails()) {
+                            if (iconIndex < iconFiles.size()) {
+                                MultipartFile iconFile = iconFiles.get(iconIndex);
+
+                                if (iconFile != null && !iconFile.isEmpty() && iconFile.getSize() > 0) {
+                                    try {
+                                        String iconUrl = cloudinaryService.uploadIcon(iconFile, "icon");
+                                        detail.setIcon(iconUrl);
+                                        System.out.println("✅ Section icon updated for detail '" + detail.getTitre() + "': " + iconUrl);
+                                    } catch (Exception e) {
+                                        System.err.println("❌ Error uploading section icon: " + e.getMessage());
+                                    }
+                                } else {
+                                    String existingIcon = detail.getIcon();
+                                    if (existingIcon == null || existingIcon.trim().isEmpty()) {
+                                        detail.setIcon(null);
+                                        System.out.println("ℹ️ No icon for section detail '" + detail.getTitre() + "'");
+                                    } else {
+                                        System.out.println("ℹ️ Keeping existing section icon for detail '" + detail.getTitre() + "'");
+                                    }
+                                }
+                                iconIndex++;
+                            }
+                        }
+                    }
+                }
+                System.out.println("📊 UPDATE - Total section iconFiles processed: " + iconIndex);
+            } else {
+                for (CoachingSection section : sections) {
+                    if (section.getDetails() != null) {
+                        for (DetailObject detail : section.getDetails()) {
+                            if (detail.getIcon() == null || detail.getIcon().trim().isEmpty()) {
+                                detail.setIcon(null);
+                            }
+                        }
+                    }
+                }
             }
 
             if (priceSectionsJson != null && !priceSectionsJson.isEmpty()) {
                 ObjectMapper priceMapper = new ObjectMapper();
                 List<PriceSection> priceSections =
                         priceMapper.readValue(priceSectionsJson, new TypeReference<List<PriceSection>>() {});
+
+                // Traitement des priceIconFiles pour priceSections
+                if (priceIconFiles != null && !priceIconFiles.isEmpty()) {
+                    int priceIconIndex = 0;
+
+                    for (PriceSection priceSection : priceSections) {
+                        if (priceSection.getDetails() != null && !priceSection.getDetails().isEmpty()) {
+                            for (DetailObject detail : priceSection.getDetails()) {
+                                if (priceIconIndex < priceIconFiles.size()) {
+                                    MultipartFile iconFile = priceIconFiles.get(priceIconIndex);
+
+                                    if (iconFile != null && !iconFile.isEmpty() && iconFile.getSize() > 0) {
+                                        try {
+                                            String iconUrl = cloudinaryService.uploadIcon(iconFile, "price-icon");
+                                            detail.setIcon(iconUrl);
+                                            System.out.println("✅ Price icon updated for detail '" + detail.getTitre() + "': " + iconUrl);
+                                        } catch (Exception e) {
+                                            System.err.println("❌ Error uploading price icon: " + e.getMessage());
+                                        }
+                                    } else {
+                                        String existingIcon = detail.getIcon();
+                                        if (existingIcon == null || existingIcon.trim().isEmpty()) {
+                                            detail.setIcon(null);
+                                            System.out.println("ℹ️ No icon for price detail '" + detail.getTitre() + "'");
+                                        } else {
+                                            System.out.println("ℹ️ Keeping existing price icon for detail '" + detail.getTitre() + "'");
+                                        }
+                                    }
+                                    priceIconIndex++;
+                                }
+                            }
+                        }
+                    }
+                    System.out.println("📊 UPDATE - Total price iconFiles processed: " + priceIconIndex);
+                } else {
+                    for (PriceSection priceSection : priceSections) {
+                        if (priceSection.getDetails() != null) {
+                            for (DetailObject detail : priceSection.getDetails()) {
+                                if (detail.getIcon() == null || detail.getIcon().trim().isEmpty()) {
+                                    detail.setIcon(null);
+                                }
+                            }
+                        }
+                    }
+                }
+
                 existing.setPriceSections(priceSections);
             }
 
@@ -163,6 +372,11 @@ public class CoachingController {
                 existing.setCoachingPartenaires(partenaires);
             }
 
+            if (logo != null && !logo.isEmpty()) {
+                String logoUrl = cloudinaryService.uploadImage(logo);
+                existing.setLogo(logoUrl);
+            }
+            
             CoachingEmploi saved = coachingService.updateCoachingEmploi(id, existing);
             return ResponseEntity.ok(saved);
 

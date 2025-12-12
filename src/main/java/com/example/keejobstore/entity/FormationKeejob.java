@@ -20,7 +20,7 @@ public class FormationKeejob {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Setter(AccessLevel.NONE)
     private long id;
-
+    private String logo;
     @Column(columnDefinition = "TEXT")
     private String description;
 
@@ -34,6 +34,9 @@ public class FormationKeejob {
             inverseJoinColumns = @JoinColumn(name = "partenaire_id")
     )
     private List<Partenaire> partenaires = new ArrayList<>();
+
+    @Enumerated(EnumType.STRING)
+    private CategoryFormationKeejob categoryFormationKeejob ;
 
     @OneToMany(mappedBy = "formation", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore   // éviter la boucle formation → sousFormation → formation

@@ -26,6 +26,7 @@ public class EvaluationController {
     private final CloudinaryService cloudinaryService;
     private final PartenaireRepository partenaireRepository;
 
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> addEvaluation(
             @RequestParam("name") String name,
@@ -37,7 +38,7 @@ public class EvaluationController {
             @RequestParam(value = "partenairesIds", required = false) List<Long> partenairesIds,
             @RequestParam(value = "catalogueTitles", required = false) List<String> catalogueTitles,
             @RequestParam(value = "catalogueImages", required = false) List<MultipartFile> catalogueImages,
-            @RequestParam(value = "iconFiles", required = false) List<MultipartFile> iconFiles) { // <- NOUVEAU
+            @RequestParam(value = "iconFiles", required = false) List<MultipartFile> iconFiles) {
 
         try {
             // Validation
@@ -58,25 +59,65 @@ public class EvaluationController {
                 return ResponseEntity.badRequest().body("Catégorie d'évaluation invalide !");
             }
 
-            // Upload des icônes et mise à jour des sections
+            // ✅ CORRECTION COMPLÈTE: Matching correct des icônes avec les détails
             if (iconFiles != null && !iconFiles.isEmpty()) {
-                int iconIndex = 0;
+                int iconIndex = 0; // Index global pour parcourir iconFiles
+
+                // Parcourir toutes les sections
+                for (EvaluationSection section : sections) {
+                    if (section.getDetails() != null && !section.getDetails().isEmpty()) {
+
+                        // Parcourir tous les détails de cette section
+                        for (DetailObject detail : section.getDetails()) {
+
+                            // Vérifier qu'on n'a pas dépassé la liste des iconFiles
+                            if (iconIndex < iconFiles.size()) {
+                                MultipartFile iconFile = iconFiles.get(iconIndex);
+
+                                // Vérifier si c'est un vrai fichier (pas un placeholder vide)
+                                if (iconFile != null && !iconFile.isEmpty() && iconFile.getSize() > 0) {
+                                    try {
+                                        // Upload vers Cloudinary dans le dossier "icon"
+                                        String iconUrl = cloudinaryService.uploadIcon(iconFile, "icon");
+                                        detail.setIcon(iconUrl);
+                                        System.out.println("✅ Icon uploaded for detail '" + detail.getTitre() + "': " + iconUrl);
+                                    } catch (Exception e) {
+                                        System.err.println("❌ Error uploading icon: " + e.getMessage());
+                                        detail.setIcon(null);
+                                    }
+                                } else {
+                                    // Placeholder vide ou fichier vide
+                                    // Garder l'URL existante si elle existe, sinon mettre null
+                                    String existingIcon = detail.getIcon();
+                                    if (existingIcon == null || existingIcon.trim().isEmpty()) {
+                                        detail.setIcon(null);
+                                        System.out.println("ℹ️ No icon for detail '" + detail.getTitre() + "' (set to null)");
+                                    } else {
+                                        // Garder l'URL existante (cas de l'édition)
+                                        System.out.println("ℹ️ Keeping existing icon for detail '" + detail.getTitre() + "': " + existingIcon);
+                                    }
+                                }
+
+                                iconIndex++; // Passer au fichier suivant
+                            } else {
+                                // Plus d'iconFiles disponibles, mettre null
+                                detail.setIcon(null);
+                                System.out.println("⚠️ No more iconFiles, setting null for detail '" + detail.getTitre() + "'");
+                            }
+                        }
+                    }
+                }
+
+                System.out.println("📊 Total iconFiles received: " + iconFiles.size());
+                System.out.println("📊 Total details processed: " + iconIndex);
+            } else {
+                // Pas d'iconFiles fournis, s'assurer que tous les icons sont null
                 for (EvaluationSection section : sections) {
                     if (section.getDetails() != null) {
                         for (DetailObject detail : section.getDetails()) {
-                            // Si l'icône existe et n'est pas vide
-                            if (iconIndex < iconFiles.size()
-                                    && iconFiles.get(iconIndex) != null
-                                    && !iconFiles.get(iconIndex).isEmpty()) {
-
-                                // Upload vers Cloudinary dans le dossier "icon"
-                                String iconUrl = cloudinaryService.uploadIcon(
-                                        iconFiles.get(iconIndex),
-                                        "icon"
-                                );
-                                detail.setIcon(iconUrl);
+                            if (detail.getIcon() == null || detail.getIcon().trim().isEmpty()) {
+                                detail.setIcon(null);
                             }
-                            iconIndex++;
                         }
                     }
                 }
@@ -97,7 +138,7 @@ public class EvaluationController {
             // Upload logo
             if (logo != null && !logo.isEmpty()) {
                 String logoUrl = cloudinaryService.uploadImage(logo);
-                evaluation.setLogo(logoUrl); // <- CORRIGÉ: c'était setImage avant
+                evaluation.setLogo(logoUrl);
             }
 
             // Gestion des partenaires
@@ -129,6 +170,7 @@ public class EvaluationController {
             return ResponseEntity.ok(saved);
 
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Erreur : " + e.getMessage());
         }
@@ -157,64 +199,106 @@ public class EvaluationController {
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> updateEvaluation(
             @PathVariable Long id,
-            @RequestParam(value = "name", required = false) String name,
-            @RequestParam(value = "description", required = false) String description,
-            @RequestParam(value = "sections", required = false) String sectionsJson,
-            @RequestParam(value = "evaluationCategory", required = false) String evaluationCategoryStr, // <- ajouté
+            @RequestParam("name") String name,
+            @RequestParam("description") String description,
+            @RequestParam("sections") String sectionsJson,
+            @RequestParam("evaluationCategory") String evaluationCategoryStr,
             @RequestParam(value = "image", required = false) MultipartFile image,
             @RequestParam(value = "logo", required = false) MultipartFile logo,
             @RequestParam(value = "partenairesIds", required = false) List<Long> partenairesIds,
             @RequestParam(value = "catalogueTitles", required = false) List<String> catalogueTitles,
-            @RequestParam(value = "catalogueImages", required = false) List<MultipartFile> catalogueImages) {
+            @RequestParam(value = "catalogueImages", required = false) List<MultipartFile> catalogueImages,
+            @RequestParam(value = "iconFiles", required = false) List<MultipartFile> iconFiles) {
 
         try {
-            Evaluation existing = evaluationService.getEvaluationById(id);
-            if (existing == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Évaluation non trouvée");
+            Evaluation evaluation = evaluationService.getEvaluationById(id);
+            if (evaluation == null) {
+                return ResponseEntity.notFound().build();
             }
 
-            if (name != null) existing.setName(name);
-            if (description != null) existing.setDescription(description);
+            evaluation.setName(name);
+            evaluation.setDescription(description);
 
-            // Mise à jour de la catégorie
-            if (evaluationCategoryStr != null && !evaluationCategoryStr.isEmpty()) {
-                try {
-                    CategoryEvaluation category = CategoryEvaluation.valueOf(evaluationCategoryStr);
-                    existing.setEvaluationCategory(category);
-                } catch (IllegalArgumentException e) {
-                    return ResponseEntity.badRequest().body("Catégorie d'évaluation invalide !");
+            CategoryEvaluation category;
+            try {
+                category = CategoryEvaluation.valueOf(evaluationCategoryStr);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body("Catégorie d'évaluation invalide !");
+            }
+            evaluation.setEvaluationCategory(category);
+
+            ObjectMapper mapper = new ObjectMapper();
+            List<EvaluationSection> sections =
+                    mapper.readValue(sectionsJson, new TypeReference<List<EvaluationSection>>() {});
+
+            // ✅ MÊME LOGIQUE DE MATCHING pour l'édition
+            if (iconFiles != null && !iconFiles.isEmpty()) {
+                int iconIndex = 0;
+
+                for (EvaluationSection section : sections) {
+                    if (section.getDetails() != null && !section.getDetails().isEmpty()) {
+                        for (DetailObject detail : section.getDetails()) {
+                            if (iconIndex < iconFiles.size()) {
+                                MultipartFile iconFile = iconFiles.get(iconIndex);
+
+                                if (iconFile != null && !iconFile.isEmpty() && iconFile.getSize() > 0) {
+                                    try {
+                                        String iconUrl = cloudinaryService.uploadIcon(iconFile, "icon");
+                                        detail.setIcon(iconUrl);
+                                        System.out.println("✅ Icon updated for detail '" + detail.getTitre() + "': " + iconUrl);
+                                    } catch (Exception e) {
+                                        System.err.println("❌ Error uploading icon: " + e.getMessage());
+                                        // Garder l'icône existante en cas d'erreur
+                                    }
+                                } else {
+                                    String existingIcon = detail.getIcon();
+                                    if (existingIcon == null || existingIcon.trim().isEmpty()) {
+                                        detail.setIcon(null);
+                                        System.out.println("ℹ️ No icon for detail '" + detail.getTitre() + "' (set to null)");
+                                    } else {
+                                        System.out.println("ℹ️ Keeping existing icon for detail '" + detail.getTitre() + "': " + existingIcon);
+                                    }
+                                }
+
+                                iconIndex++;
+                            }
+                        }
+                    }
+                }
+
+                System.out.println("📊 UPDATE - Total iconFiles received: " + iconFiles.size());
+                System.out.println("📊 UPDATE - Total details processed: " + iconIndex);
+            } else {
+                for (EvaluationSection section : sections) {
+                    if (section.getDetails() != null) {
+                        for (DetailObject detail : section.getDetails()) {
+                            if (detail.getIcon() == null || detail.getIcon().trim().isEmpty()) {
+                                detail.setIcon(null);
+                            }
+                        }
+                    }
                 }
             }
 
-            // Mise à jour des sections
-            if (sectionsJson != null && !sectionsJson.isEmpty()) {
-                ObjectMapper mapper = new ObjectMapper();
-                List<EvaluationSection> sections =
-                        mapper.readValue(sectionsJson, new TypeReference<List<EvaluationSection>>() {});
-                existing.setSections(sections);
-            }
+            evaluation.setSections(sections);
 
-            // Mise à jour image principale
             if (image != null && !image.isEmpty()) {
                 String imageUrl = cloudinaryService.uploadImage(image);
-                existing.setImage(imageUrl);
+                evaluation.setImage(imageUrl);
             }
 
             if (logo != null && !logo.isEmpty()) {
                 String logoUrl = cloudinaryService.uploadImage(logo);
-                existing.setLogo(logoUrl);
+                evaluation.setLogo(logoUrl);
             }
 
-            // Mise à jour partenaires
             if (partenairesIds != null) {
                 List<Partenaire> partenaires = partenaireRepository.findAllById(partenairesIds);
-                existing.setEvaluationPartenaires(partenaires);
+                evaluation.setEvaluationPartenaires(partenaires);
             }
 
-            // Mise à jour catalogues
-            if (catalogueTitles != null) {
-                existing.getEvaluationCatalogues().clear();
-
+            if (catalogueTitles != null && !catalogueTitles.isEmpty()) {
+                List<EvaluationCatalogue> catalogues = new ArrayList<>();
                 for (int i = 0; i < catalogueTitles.size(); i++) {
                     EvaluationCatalogue catalogue = new EvaluationCatalogue();
                     catalogue.setTitle(catalogueTitles.get(i));
@@ -225,17 +309,19 @@ public class EvaluationController {
                         catalogue.setImage(catalogueImageUrl);
                     }
 
-                    catalogue.setEvaluation(existing);
-                    existing.getEvaluationCatalogues().add(catalogue);
+                    catalogue.setEvaluation(evaluation);
+                    catalogues.add(catalogue);
                 }
+                evaluation.setEvaluationCatalogues(catalogues);
             }
 
-            Evaluation saved = evaluationService.updateEvaluation(id, existing);
+            Evaluation saved = evaluationService.updateEvaluation(id, evaluation);
             return ResponseEntity.ok(saved);
 
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erreur serveur : " + e.getMessage());
+                    .body("Erreur : " + e.getMessage());
         }
     }
 
