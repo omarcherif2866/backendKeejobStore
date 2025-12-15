@@ -388,4 +388,15 @@ public class CoachingController {
 
 
 
+    @GetMapping("/by-category/{category}")
+    public ResponseEntity<?> getCoachingByCategory(@PathVariable String category) {
+        try {
+            CategoryCoaching enumValue = CategoryCoaching.valueOf(category);
+            List<CoachingEmploi> cvs = coachingService.findByCategoryCoaching(enumValue);
+            return ResponseEntity.ok(cvs);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Catégorie invalide !");
+        }
+    }
+
 }

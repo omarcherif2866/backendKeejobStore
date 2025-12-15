@@ -161,7 +161,16 @@ public class FormationKeejobController {
     }
 
 
-
+    @GetMapping("/by-category/{category}")
+    public ResponseEntity<?> getFormationsByCategory(@PathVariable String category) {
+        try {
+            CategoryFormationKeejob enumValue = CategoryFormationKeejob.valueOf(category);
+            List<FormationKeejob> cvs = formationKeejobService.findByCategoryFormationKeejob(enumValue);
+            return ResponseEntity.ok(cvs);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Catégorie invalide !");
+        }
+    }
 
 
 }

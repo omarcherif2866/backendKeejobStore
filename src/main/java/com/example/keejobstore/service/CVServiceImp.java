@@ -1,8 +1,6 @@
 package com.example.keejobstore.service;
 
-import com.example.keejobstore.entity.CVandLetter;
-import com.example.keejobstore.entity.DetailObject;
-import com.example.keejobstore.entity.Evaluation;
+import com.example.keejobstore.entity.*;
 import com.example.keejobstore.repository.CVRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -92,6 +90,10 @@ public class CVServiceImp implements CVService {
         return cvRepository.save(existingCVandLetter);
     }
 
+
+    public List<CVandLetter> findByCategoryCV (CategoryCV category) {
+        return cvRepository.findByCategoryCV(category);
+    }
 
 
 }

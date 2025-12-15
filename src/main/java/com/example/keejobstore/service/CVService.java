@@ -1,7 +1,6 @@
 package com.example.keejobstore.service;
 
-import com.example.keejobstore.entity.DetailObject;
-import com.example.keejobstore.entity.CVandLetter;
+import com.example.keejobstore.entity.*;
 
 import java.util.List;
 import java.util.Map;
@@ -12,4 +11,6 @@ public interface CVService {
     CVandLetter getCVandLetterById(Long id);
     public List<CVandLetter> getAllCVandLetters();
     CVandLetter updateCVandLetter(Long id, CVandLetter CVandLetter);
+    List<CVandLetter> findByCategoryCV(CategoryCV category);
+
 }

@@ -1,8 +1,6 @@
 package com.example.keejobstore.service;
 
-import com.example.keejobstore.entity.DetailObject;
-import com.example.keejobstore.entity.Evaluation;
-import com.example.keejobstore.entity.FormationKeejob;
+import com.example.keejobstore.entity.*;
 import com.example.keejobstore.entity.FormationKeejob;
 import com.example.keejobstore.repository.ActualiteRepository;
 import com.example.keejobstore.repository.FormationKeejobRepository;
@@ -90,5 +88,9 @@ public class FormationKeejobServiceImp implements FormationKeejobService {
         }
     }
 
+
+    public List<FormationKeejob> findByCategoryFormationKeejob (CategoryFormationKeejob category) {
+        return formationKeejobRepository.findByCategoryFormationKeejob(category);
+    }
 
 }

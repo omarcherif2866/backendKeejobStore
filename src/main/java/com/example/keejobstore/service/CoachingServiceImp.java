@@ -1,6 +1,6 @@
 package com.example.keejobstore.service;
 
-import com.example.keejobstore.entity.CoachingEmploi;
+import com.example.keejobstore.entity.*;
 import com.example.keejobstore.entity.CoachingEmploi;
 import com.example.keejobstore.repository.CoachingRepository;
 import lombok.RequiredArgsConstructor;
@@ -101,4 +101,10 @@ public class CoachingServiceImp implements CoachingService {
 
         return coachingRepository.save(existingCoachingEmploi);
     }
+
+
+    public List<CoachingEmploi> findByCategoryCoaching (CategoryCoaching category) {
+        return coachingRepository.findByCategoryCoaching(category);
+    }
+
 }

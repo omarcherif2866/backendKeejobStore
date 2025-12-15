@@ -380,5 +380,16 @@ public class CVController {
     }
 
 
+    @GetMapping("/by-category/{category}")
+    public ResponseEntity<?> getCVByCategory(@PathVariable String category) {
+        try {
+            CategoryCV enumValue = CategoryCV.valueOf(category);
+            List<CVandLetter> cvs = cvService.findByCategoryCV(enumValue);
+            return ResponseEntity.ok(cvs);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Catégorie invalide !");
+        }
+    }
+
 
 }
