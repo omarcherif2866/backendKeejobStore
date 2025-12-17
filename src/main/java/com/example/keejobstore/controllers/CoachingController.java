@@ -306,7 +306,7 @@ public class CoachingController {
                     }
                 }
             }
-
+            existing.setSections(sections);
             if (priceSectionsJson != null && !priceSectionsJson.isEmpty()) {
                 ObjectMapper priceMapper = new ObjectMapper();
                 List<PriceSection> priceSections =

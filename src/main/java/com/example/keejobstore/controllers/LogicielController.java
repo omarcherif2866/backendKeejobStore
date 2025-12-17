@@ -2,6 +2,7 @@ package com.example.keejobstore.controllers;
 
 import com.example.keejobstore.entity.Logiciel;
 import com.example.keejobstore.entity.SousFormationkeejob;
+import com.example.keejobstore.repository.LogicielRepository;
 import com.example.keejobstore.repository.SousFormationKeejobRepository;
 import com.example.keejobstore.service.CloudinaryService;
 import com.example.keejobstore.service.LogicielService;
@@ -23,6 +24,7 @@ public class LogicielController {
     private final LogicielService logicielService;
     private final CloudinaryService cloudinaryService;
     private final SousFormationKeejobRepository sousFormationKeejobRepository;
+    private final LogicielRepository logicielRepository;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> addLogiciel(
@@ -127,5 +129,114 @@ public class LogicielController {
         return ResponseEntity.ok(logiciel);
     }
 
+    @PostMapping("/{sousFormationId}/logiciels/{logicielId}")
+    public ResponseEntity<String> assignLogiciel(
+            @PathVariable Long sousFormationId,
+            @PathVariable Long logicielId) {
 
+        // Récupérer la sous-formation
+        SousFormationkeejob sousFormation = sousFormationKeejobRepository.findById(sousFormationId)
+                .orElseThrow(() -> new RuntimeException("Sous-formation non trouvée avec l'id: " + sousFormationId));
+
+        // Récupérer le logiciel
+        Logiciel logiciel = logicielRepository.findById(logicielId)
+                .orElseThrow(() -> new RuntimeException("Logiciel non trouvé avec l'id: " + logicielId));
+
+        // Vérifier si le logiciel n'est pas déjà assigné
+        if (sousFormation.getSousFormationLogiciel().contains(logiciel)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Le logiciel est déjà assigné à cette sous-formation");
+        }
+
+        // Assigner le logiciel
+        sousFormation.getSousFormationLogiciel().add(logiciel);
+        sousFormationKeejobRepository.save(sousFormation);
+
+        return ResponseEntity.ok("Logiciel assigné avec succès à la sous-formation");
+    }
+
+    /**
+     * Désassigner un logiciel d'une sous-formation
+     * DELETE /api/sous-formations/{sousFormationId}/logiciels/{logicielId}
+     */
+    @DeleteMapping("/{sousFormationId}/logiciels/{logicielId}")
+    public ResponseEntity<String> unassignLogiciel(
+            @PathVariable Long sousFormationId,
+            @PathVariable Long logicielId) {
+
+        // Récupérer la sous-formation
+        SousFormationkeejob sousFormation = sousFormationKeejobRepository.findById(sousFormationId)
+                .orElseThrow(() -> new RuntimeException("Sous-formation non trouvée avec l'id: " + sousFormationId));
+
+        // Récupérer le logiciel
+        Logiciel logiciel = logicielRepository.findById(logicielId)
+                .orElseThrow(() -> new RuntimeException("Logiciel non trouvé avec l'id: " + logicielId));
+
+        // Vérifier si le logiciel est bien assigné
+        if (!sousFormation.getSousFormationLogiciel().contains(logiciel)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Le logiciel n'est pas assigné à cette sous-formation");
+        }
+
+        // Désassigner le logiciel
+        sousFormation.getSousFormationLogiciel().remove(logiciel);
+        sousFormationKeejobRepository.save(sousFormation);
+
+        return ResponseEntity.ok("Logiciel désassigné avec succès de la sous-formation");
+    }
+
+    /**
+     * Assigner plusieurs logiciels à une sous-formation
+     * POST /api/sous-formations/{sousFormationId}/logiciels/bulk
+     */
+    @PostMapping("/{sousFormationId}/logiciels/bulk")
+    public ResponseEntity<String> assignMultipleLogiciels(
+            @PathVariable Long sousFormationId,
+            @RequestBody List<Long> logicielIds) {
+
+        // Récupérer la sous-formation
+        SousFormationkeejob sousFormation = sousFormationKeejobRepository.findById(sousFormationId)
+                .orElseThrow(() -> new RuntimeException("Sous-formation non trouvée avec l'id: " + sousFormationId));
+
+        // Récupérer tous les logiciels
+        List<Logiciel> logiciels = logicielRepository.findAllById(logicielIds);
+
+        if (logiciels.size() != logicielIds.size()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Certains logiciels n'ont pas été trouvés");
+        }
+
+        // Assigner les logiciels (éviter les doublons)
+        for (Logiciel logiciel : logiciels) {
+            if (!sousFormation.getSousFormationLogiciel().contains(logiciel)) {
+                sousFormation.getSousFormationLogiciel().add(logiciel);
+            }
+        }
+
+        sousFormationKeejobRepository.save(sousFormation);
+
+        return ResponseEntity.ok(logiciels.size() + " logiciel(s) assigné(s) avec succès");
+    }
+
+    /**
+     * Désassigner tous les logiciels d'une sous-formation
+     * DELETE /api/sous-formations/{sousFormationId}/logiciels
+     */
+    @DeleteMapping("/{sousFormationId}/logiciels")
+    public ResponseEntity<String> unassignAllLogiciels(@PathVariable Long sousFormationId) {
+
+        // Récupérer la sous-formation
+        SousFormationkeejob sousFormation = sousFormationKeejobRepository.findById(sousFormationId)
+                .orElseThrow(() -> new RuntimeException("Sous-formation non trouvée avec l'id: " + sousFormationId));
+
+        int count = sousFormation.getSousFormationLogiciel().size();
+
+        // Vider la liste des logiciels
+        sousFormation.getSousFormationLogiciel().clear();
+        sousFormationKeejobRepository.save(sousFormation);
+
+        return ResponseEntity.ok(count + " logiciel(s) désassigné(s) avec succès");
+    }
 }
+
+

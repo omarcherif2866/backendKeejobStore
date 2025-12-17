@@ -31,7 +31,7 @@ public class SousFormationkeejob {
 
     private String title;
     private String image;
-
+    private String logo;
     @ManyToMany
     @JoinTable(
             name = "sousFormation_partenaire",

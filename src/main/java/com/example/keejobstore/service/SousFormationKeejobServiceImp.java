@@ -68,7 +68,9 @@ public class SousFormationKeejobServiceImp implements SousFormationKeejobService
                 existingSousFormationkeejob.setDescription(SousFormationkeejob.getDescription());
             }
 
-
+            if (SousFormationkeejob.getLogo() != null) {
+                existingSousFormationkeejob.setLogo(SousFormationkeejob.getLogo());
+            }
 
             SousFormationkeejob updatedSousFormationkeejob = sousFormationKeejobRepository.save(existingSousFormationkeejob);
 

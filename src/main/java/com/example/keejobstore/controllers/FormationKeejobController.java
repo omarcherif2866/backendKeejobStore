@@ -1,6 +1,7 @@
 package com.example.keejobstore.controllers;
 
 import com.example.keejobstore.entity.*;
+import com.example.keejobstore.repository.FormationKeejobRepository;
 import com.example.keejobstore.repository.PartenaireRepository;
 import com.example.keejobstore.service.CloudinaryService;
 import com.example.keejobstore.service.FormationKeejobService;
@@ -22,6 +23,7 @@ public class FormationKeejobController {
     private final FormationKeejobService formationKeejobService;
     private final CloudinaryService cloudinaryService;
     private final PartenaireRepository partenaireRepository;
+    private final FormationKeejobRepository formationKeejobRepository;
 
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -119,6 +121,7 @@ public class FormationKeejobController {
             if (existing == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("FormationKeejob non trouvée");
             }
+
             CategoryFormationKeejob category;
             try {
                 category = CategoryFormationKeejob.valueOf(categoryFormationKeejobStr);
@@ -126,6 +129,7 @@ public class FormationKeejobController {
                 return ResponseEntity.badRequest().body("Catégorie d'évaluation invalide !");
             }
             existing.setCategoryFormationKeejob(category);
+
             // MAJ des champs principaux
             existing.setTitle(title);
             existing.setDescription(description);
@@ -141,13 +145,34 @@ public class FormationKeejobController {
                 existing.setLogo(logoUrl);
             }
 
-            // 🔥 MAJ des partenaires
-            if (partenairesIds != null) {
-                List<Partenaire> partenaires = partenaireRepository.findAllById(partenairesIds);
-                existing.setPartenaires(partenaires);
+            // ✅ CORRECTION : Gérer correctement la relation Many-to-Many
+            if (partenairesIds != null && !partenairesIds.isEmpty()) {
+                System.out.println("📋 Updating partenaires with IDs: " + partenairesIds);
+
+                // 1. Vider complètement la collection existante
+                existing.getPartenaires().clear();
+
+                // 2. Flush pour synchroniser avec la DB
+                formationKeejobRepository.saveAndFlush(existing);
+
+                // 3. Récupérer les nouveaux partenaires
+                List<Partenaire> nouveauxPartenaires = partenaireRepository.findAllById(partenairesIds);
+                System.out.println("✅ Found " + nouveauxPartenaires.size() + " partenaires");
+
+                // 4. Ajouter les nouveaux partenaires
+                existing.getPartenaires().addAll(nouveauxPartenaires);
+
+                System.out.println("✅ Total partenaires in formation: " + existing.getPartenaires().size());
+            } else {
+                System.out.println("⚠️ No partenaires provided, clearing existing ones");
+                existing.getPartenaires().clear();
             }
 
-            FormationKeejob saved = formationKeejobService.updateFormationKeejob(id, existing);
+            // Sauvegarder avec flush
+            FormationKeejob saved = formationKeejobRepository.saveAndFlush(existing);
+
+            // Vérification après sauvegarde
+            System.out.println("🔍 Partenaires après save: " + saved.getPartenaires().size());
 
             return ResponseEntity.ok(saved);
 
@@ -155,6 +180,7 @@ public class FormationKeejobController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Erreur lors de l'upload de l'image : " + e.getMessage());
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Erreur serveur : " + e.getMessage());
         }

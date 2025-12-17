@@ -1,6 +1,7 @@
 package com.example.keejobstore.controllers;
 import java.util.Map;   // <-- IMPORTANT !!!
 
+import com.example.keejobstore.repository.SousFormationKeejobRepository;
 import com.fasterxml.jackson.core.type.TypeReference; // ✅ IMPORTANT : Bon import
 import com.example.keejobstore.entity.DetailObject;
 import com.example.keejobstore.entity.FormationKeejob;
@@ -30,6 +31,7 @@ public class SousFormationKeejobController {
     private final FormationKeejobRepository formationKeejobRepository;
     private final CloudinaryService cloudinaryService;
     private final PartenaireRepository partenaireRepository;
+    private final SousFormationKeejobRepository sousFormationKeejobRepository;
 
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -37,6 +39,7 @@ public class SousFormationKeejobController {
             @RequestParam("title") String title,
             @RequestParam("description") String description,
             @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "logo", required = false) MultipartFile logo,
             @RequestParam("formationKeejobId") Long formationKeejobId,
             @RequestParam(value = "partenairesIds", required = false) List<Long> partenairesIds,
             @RequestParam("details") String detailsJson,
@@ -57,6 +60,12 @@ public class SousFormationKeejobController {
             // Upload image principale
             if (image != null && !image.isEmpty()) {
                 sousFormation.setImage(cloudinaryService.uploadImage(image));
+            }
+
+            // Upload logo
+            if (logo != null && !logo.isEmpty()) {
+                String logoUrl = cloudinaryService.uploadImage(logo);
+                sousFormation.setLogo(logoUrl);
             }
 
             // Parse JSON des détails
@@ -115,17 +124,19 @@ public class SousFormationKeejobController {
             @PathVariable Long id,
             @RequestParam("title") String title,
             @RequestParam("description") String description,
-            @RequestParam(value = "titleLogiciel", required = false) String titleLogiciel, // ✅ AJOUT
+            @RequestParam(value = "titleLogiciel", required = false) String titleLogiciel,
             @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "logo", required = false) MultipartFile logo,
             @RequestParam(value = "partenairesIds", required = false) List<Long> partenairesIds,
-            @RequestParam(value = "details", required = false) String detailsJson, // ✅ AJOUT
-            @RequestParam(value = "icons", required = false) MultipartFile[] icons) { // ✅ AJOUT
+            @RequestParam(value = "details", required = false) String detailsJson,
+            @RequestParam(value = "icons", required = false) MultipartFile[] icons) {
 
         try {
             System.out.println("📥 PUT /sousFormationKeejob/" + id);
             System.out.println("📝 titleLogiciel reçu: " + titleLogiciel);
             System.out.println("📝 details reçu: " + detailsJson);
             System.out.println("📝 icons count: " + (icons != null ? icons.length : 0));
+            System.out.println("📝 partenairesIds reçus: " + partenairesIds);
 
             SousFormationkeejob existing = sousFormationKeejobService.getById(id);
             if (existing == null) {
@@ -150,11 +161,33 @@ public class SousFormationKeejobController {
                 System.out.println("✅ Image mise à jour");
             }
 
-            // ✅ MAJ des partenaires
+            if (logo != null && !logo.isEmpty()) {
+                String logoUrl = cloudinaryService.uploadImage(logo);
+                existing.setLogo(logoUrl);
+                System.out.println("✅ Logo mis à jour");
+            }
+
+            // ✅ CORRECTION : Gérer correctement la relation Many-to-Many avec les partenaires
             if (partenairesIds != null && !partenairesIds.isEmpty()) {
-                List<Partenaire> partenaires = partenaireRepository.findAllById(partenairesIds);
-                existing.setSousFormationPartenaires(partenaires);
-                System.out.println("✅ Partenaires mis à jour: " + partenaires.size());
+                System.out.println("📋 Updating partenaires with IDs: " + partenairesIds);
+
+                // 1. Vider complètement la collection existante
+                existing.getSousFormationPartenaires().clear();
+
+                // 2. Flush pour synchroniser avec la DB
+                sousFormationKeejobRepository.saveAndFlush(existing);
+
+                // 3. Récupérer les nouveaux partenaires
+                List<Partenaire> nouveauxPartenaires = partenaireRepository.findAllById(partenairesIds);
+                System.out.println("✅ Found " + nouveauxPartenaires.size() + " partenaires");
+
+                // 4. Ajouter les nouveaux partenaires
+                existing.getSousFormationPartenaires().addAll(nouveauxPartenaires);
+
+                System.out.println("✅ Total partenaires in sous-formation: " + existing.getSousFormationPartenaires().size());
+            } else {
+                System.out.println("⚠️ No partenaires provided, clearing existing ones");
+                existing.getSousFormationPartenaires().clear();
             }
 
             // ✅ MAJ des details (MÊME LOGIQUE QUE LE POST)
@@ -189,9 +222,11 @@ public class SousFormationKeejobController {
                 System.out.println("✅ Details mis à jour: " + details.size());
             }
 
-            // ✅ Sauvegarder les modifications
-            SousFormationkeejob saved = sousFormationKeejobService.updateSousFormation(id, existing);
+            // ✅ Sauvegarder avec flush
+            SousFormationkeejob saved = sousFormationKeejobRepository.saveAndFlush(existing);
 
+            // Vérification après sauvegarde
+            System.out.println("🔍 Partenaires après save: " + saved.getSousFormationPartenaires().size());
             System.out.println("✅ SousFormation mise à jour avec succès!");
 
             return ResponseEntity.ok(saved);

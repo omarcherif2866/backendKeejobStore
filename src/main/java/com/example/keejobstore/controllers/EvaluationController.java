@@ -1,6 +1,7 @@
 package com.example.keejobstore.controllers;
 
 import com.example.keejobstore.entity.*;
+import com.example.keejobstore.repository.EvaluationRepository;
 import com.example.keejobstore.repository.PartenaireRepository;
 import com.example.keejobstore.service.CloudinaryService;
 import com.example.keejobstore.service.EvaluationService;
@@ -25,6 +26,7 @@ public class EvaluationController {
     private final EvaluationService evaluationService;
     private final CloudinaryService cloudinaryService;
     private final PartenaireRepository partenaireRepository;
+    private final EvaluationRepository evaluationRepository;
 
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -231,49 +233,23 @@ public class EvaluationController {
             List<EvaluationSection> sections =
                     mapper.readValue(sectionsJson, new TypeReference<List<EvaluationSection>>() {});
 
-            // ✅ MÊME LOGIQUE DE MATCHING pour l'édition
+            // Logique des icônes (inchangée)
             if (iconFiles != null && !iconFiles.isEmpty()) {
                 int iconIndex = 0;
-
                 for (EvaluationSection section : sections) {
                     if (section.getDetails() != null && !section.getDetails().isEmpty()) {
                         for (DetailObject detail : section.getDetails()) {
                             if (iconIndex < iconFiles.size()) {
                                 MultipartFile iconFile = iconFiles.get(iconIndex);
-
                                 if (iconFile != null && !iconFile.isEmpty() && iconFile.getSize() > 0) {
                                     try {
                                         String iconUrl = cloudinaryService.uploadIcon(iconFile, "icon");
                                         detail.setIcon(iconUrl);
-                                        System.out.println("✅ Icon updated for detail '" + detail.getTitre() + "': " + iconUrl);
                                     } catch (Exception e) {
                                         System.err.println("❌ Error uploading icon: " + e.getMessage());
-                                        // Garder l'icône existante en cas d'erreur
-                                    }
-                                } else {
-                                    String existingIcon = detail.getIcon();
-                                    if (existingIcon == null || existingIcon.trim().isEmpty()) {
-                                        detail.setIcon(null);
-                                        System.out.println("ℹ️ No icon for detail '" + detail.getTitre() + "' (set to null)");
-                                    } else {
-                                        System.out.println("ℹ️ Keeping existing icon for detail '" + detail.getTitre() + "': " + existingIcon);
                                     }
                                 }
-
                                 iconIndex++;
-                            }
-                        }
-                    }
-                }
-
-                System.out.println("📊 UPDATE - Total iconFiles received: " + iconFiles.size());
-                System.out.println("📊 UPDATE - Total details processed: " + iconIndex);
-            } else {
-                for (EvaluationSection section : sections) {
-                    if (section.getDetails() != null) {
-                        for (DetailObject detail : section.getDetails()) {
-                            if (detail.getIcon() == null || detail.getIcon().trim().isEmpty()) {
-                                detail.setIcon(null);
                             }
                         }
                     }
@@ -292,13 +268,35 @@ public class EvaluationController {
                 evaluation.setLogo(logoUrl);
             }
 
-            if (partenairesIds != null) {
-                List<Partenaire> partenaires = partenaireRepository.findAllById(partenairesIds);
-                evaluation.setEvaluationPartenaires(partenaires);
+            // ✅ CORRECTION : Gérer les partenaires AVANT de sauvegarder
+            if (partenairesIds != null && !partenairesIds.isEmpty()) {
+                System.out.println("📋 Updating partenaires with IDs: " + partenairesIds);
+
+                // 1. Vider complètement la collection
+                evaluation.getEvaluationPartenaires().clear();
+
+                // ⚠️ IMPORTANT : Flush pour persister le clear dans la DB
+                evaluationRepository.saveAndFlush(evaluation);
+
+                // 2. Récupérer les nouveaux partenaires
+                List<Partenaire> nouveauxPartenaires = partenaireRepository.findAllById(partenairesIds);
+                System.out.println("✅ Found " + nouveauxPartenaires.size() + " partenaires");
+
+                // 3. Ajouter les nouveaux partenaires un par un
+                for (Partenaire partenaire : nouveauxPartenaires) {
+                    evaluation.getEvaluationPartenaires().add(partenaire);
+                }
+
+                System.out.println("✅ Total partenaires in evaluation: " + evaluation.getEvaluationPartenaires().size());
+            } else {
+                System.out.println("⚠️ No partenaires provided, clearing existing ones");
+                evaluation.getEvaluationPartenaires().clear();
             }
 
+            // Gestion des catalogues
             if (catalogueTitles != null && !catalogueTitles.isEmpty()) {
-                List<EvaluationCatalogue> catalogues = new ArrayList<>();
+                evaluation.getEvaluationCatalogues().clear();
+
                 for (int i = 0; i < catalogueTitles.size(); i++) {
                     EvaluationCatalogue catalogue = new EvaluationCatalogue();
                     catalogue.setTitle(catalogueTitles.get(i));
@@ -310,12 +308,18 @@ public class EvaluationController {
                     }
 
                     catalogue.setEvaluation(evaluation);
-                    catalogues.add(catalogue);
+                    evaluation.getEvaluationCatalogues().add(catalogue);
                 }
-                evaluation.setEvaluationCatalogues(catalogues);
+            } else {
+                evaluation.getEvaluationCatalogues().clear();
             }
 
-            Evaluation saved = evaluationService.updateEvaluation(id, evaluation);
+            // Sauvegarder avec flush
+            Evaluation saved = evaluationRepository.saveAndFlush(evaluation);
+
+            // Vérification après sauvegarde
+            System.out.println("🔍 Partenaires après save: " + saved.getEvaluationPartenaires().size());
+
             return ResponseEntity.ok(saved);
 
         } catch (Exception e) {
