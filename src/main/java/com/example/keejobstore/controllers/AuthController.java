@@ -43,7 +43,7 @@ import java.util.Map;
         @PostMapping("/login")
         public ResponseEntity<?> login(@RequestBody LoginDto loginDto) {
             // Récupérer l'utilisateur par son nom d'utilisateur ou email
-            var account = userRepository.findByUsernameOrEmail(loginDto.getUsername(), loginDto.getUsername()).orElse(null);
+            var account = userRepository.findByUsernameOrEmail(loginDto.getEmail(), loginDto.getEmail()).orElse(null);
 
             // Vérifier si l'utilisateur existe
             if (account == null) {
@@ -59,12 +59,12 @@ import java.util.Map;
             try {
                 authenticationManager.authenticate(
                         new UsernamePasswordAuthenticationToken(
-                                loginDto.getUsername(),
+                                loginDto.getEmail(),
                                 loginDto.getPassword()
                         )
                 );
             } catch (AuthenticationException e) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Nom d'utilisateur ou mot de passe incorrect");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Nom d'utilisateur ou mot de passe incorrect"+loginDto.getEmail());
             }
 
             // Générer le token JWT

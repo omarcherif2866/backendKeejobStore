@@ -22,6 +22,7 @@ public class ServiceFromateur {
     private Long id;
 
     private String title;
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @ManyToOne
